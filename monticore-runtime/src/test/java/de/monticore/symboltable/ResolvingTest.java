@@ -34,7 +34,6 @@ import de.monticore.io.paths.ModelPath;
 import de.monticore.symboltable.mocks.languages.entity.ActionSymbol;
 import de.monticore.symboltable.mocks.languages.entity.EntityLanguage;
 import de.monticore.symboltable.mocks.languages.entity.EntitySymbol;
-import de.monticore.symboltable.mocks.languages.entity.EntitySymbolReference;
 import de.monticore.symboltable.mocks.languages.entity.PropertySymbol;
 import de.monticore.symboltable.resolving.CommonResolvingFilter;
 import de.monticore.symboltable.resolving.ResolvedSeveralEntriesException;
@@ -49,14 +48,12 @@ import org.junit.Test;
  */
 public class ResolvingTest {
 
-  // TODO PN test some complex resolving scenarios.
-
   @Test
   public void testSameSymbolOccursOnlyOnce() {
     final EntitySymbol entity = new EntitySymbol("Entity");
 
     final MutableScope localScope = new CommonScope(false);
-    localScope.addResolver(CommonResolvingFilter.create(EntitySymbol.class, EntitySymbol.KIND));
+    localScope.addResolver(CommonResolvingFilter.create(EntitySymbol.KIND));
 
     localScope.add(entity);
     localScope.add(entity);
@@ -86,8 +83,7 @@ public class ResolvingTest {
     final MutableScope localScope = new CommonScope(false);
     ((MutableScope)action.getSpannedScope()).addSubScope(localScope);
 
-    final ResolvingFilter<PropertySymbol> propertyResolvingFilter = CommonResolvingFilter.create(
-        PropertySymbol.class, PropertySymbol.KIND);
+    final ResolvingFilter<PropertySymbol> propertyResolvingFilter = CommonResolvingFilter.create(PropertySymbol.KIND);
 
     // Only localScope is initialized with a resolver for properties
     localScope.addResolver(propertyResolvingFilter);
@@ -103,7 +99,7 @@ public class ResolvingTest {
     assertFalse(entity.getSpannedScope().resolve("prop", PropertySymbol.KIND).isPresent());
 
 
-    entity.getSpannedScope().addResolver(propertyResolvingFilter);
+    entity.getMutableSpannedScope().addResolver(propertyResolvingFilter);
     assertFalse(action.getSpannedScope().resolve("prop", PropertySymbol.KIND).isPresent());
     assertTrue(entity.getSpannedScope().resolve("prop", PropertySymbol.KIND).isPresent());
   }
@@ -176,7 +172,7 @@ public class ResolvingTest {
     artifactScope.setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
 
     final EntitySymbol entity = new EntitySymbol("Entity");
-    entity.getSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
+    entity.getMutableSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
     artifactScope.add(entity);
 
     final ActionSymbol action = new ActionSymbol("action");
@@ -189,76 +185,6 @@ public class ResolvingTest {
     // or a partial name.
     assertFalse(entity.getSpannedScope().resolve("Entity.action", ActionSymbol.KIND).isPresent());
 
-  }
-
-  @Test
-  public void testOnlyConsiderExplicitlyImportedScopesWhenResolvingInImportedScope() {
-    final ModelingLanguage language = new EntityLanguage();
-    final ResolverConfiguration resolverConfiguration = new ResolverConfiguration();
-    resolverConfiguration.addTopScopeResolvers(language.getResolvers());
-
-    final GlobalScope gs = new GlobalScope(new ModelPath(), language, resolverConfiguration);
-    final ArtifactScope as = new ArtifactScope(Optional.empty(), "p", new ArrayList<>());
-    gs.addSubScope(as);
-    as.setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    final PropertySymbol asProp = new PropertySymbol("asProp", new EntitySymbolReference("foo", as));
-    as.add(asProp);
-
-    final EntitySymbol supEntity = new EntitySymbol("SupEntity");
-    as.add(supEntity);
-    supEntity.getSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    assertTrue(supEntity.getSpannedScope().resolve("asProp", PropertySymbol.KIND).isPresent());
-
-    final PropertySymbol supProp = new PropertySymbol("supProp", new EntitySymbolReference("bar", supEntity.getSpannedScope()));
-    supEntity.addProperty(supProp);
-
-    assertTrue(supEntity.getSpannedScope().resolve("supProp", PropertySymbol.KIND).isPresent());
-
-    final EntitySymbol subEntity = new EntitySymbol("SubEntity");
-    gs.add(subEntity);
-    subEntity.getSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    subEntity.setSuperClass(new EntitySymbolReference("p.SupEntity", gs));
-
-    assertTrue(subEntity.getSuperClass().get().existsReferencedSymbol());
-    // Resolving property that is defined in super entity should work
-    assertTrue(subEntity.getSpannedScope().resolve("supProp", PropertySymbol.KIND).isPresent());
-    // Resolving property that is defined in the enclosing scope of the super entity should not work
-    assertFalse(subEntity.getSpannedScope().resolve("asProp", PropertySymbol.KIND).isPresent());
-  }
-
-  @Test
-  public void testSymbolInImportedScopeHasHigherPriorityThanSymbolInEnclosingScope() {
-    final ModelingLanguage language = new EntityLanguage();
-    final ResolverConfiguration resolverConfiguration = new ResolverConfiguration();
-    resolverConfiguration.addTopScopeResolvers(language.getResolvers());
-
-    final GlobalScope gs = new GlobalScope(new ModelPath(), language, resolverConfiguration);
-    final ArtifactScope as = new ArtifactScope(Optional.empty(), "", new ArrayList<>());
-    gs.addSubScope(as);
-    as.setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    final PropertySymbol asProp = new PropertySymbol("prop", new EntitySymbolReference("foo", as));
-    as.add(asProp);
-
-    final EntitySymbol subEntity = new EntitySymbol("SubEntity");
-    as.add(subEntity);
-    subEntity.getSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    subEntity.setSuperClass(new EntitySymbolReference("SupEntity", gs));
-
-    final EntitySymbol supEntity = new EntitySymbol("SupEntity");
-    gs.add(supEntity);
-    supEntity.getSpannedScope().setResolvingFilters(resolverConfiguration.getTopScopeResolvingFilters());
-
-    final PropertySymbol supProp = new PropertySymbol("prop", new EntitySymbolReference("bar", supEntity.getSpannedScope()));
-    supEntity.addProperty(supProp);
-
-    // Resolving "prop" in sub enity should resolve to property symbol of super entity (instead of enclosing scope)
-    final PropertySymbol resolvedProp = subEntity.getSpannedScope().<PropertySymbol>resolve("prop", PropertySymbol.KIND).get();
-    assertSame(supProp, resolvedProp);
   }
 
 }

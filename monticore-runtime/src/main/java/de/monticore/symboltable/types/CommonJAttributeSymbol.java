@@ -22,14 +22,12 @@ package de.monticore.symboltable.types;
 import de.monticore.symboltable.CommonSymbol;
 import de.monticore.symboltable.modifiers.BasicAccessModifier;
 import de.monticore.symboltable.types.references.JTypeReference;
-import de.monticore.symboltable.types.references.TypeReference;
 
 /**
  * @author Pedram Mir Seyed Nazari
  */
-public class CommonJAttributeSymbol<T extends JTypeReference<? extends JTypeSymbol>> extends CommonSymbol implements JAttributeSymbol {
-
-  public static final JAttributeSymbolKind KIND = JAttributeSymbol.KIND;
+// TODO PN rename to CommonJFieldSymbol
+public abstract class CommonJAttributeSymbol<T extends JTypeReference<? extends JTypeSymbol>> extends CommonSymbol implements JAttributeSymbol {
 
   private T type;
 
@@ -92,17 +90,17 @@ public class CommonJAttributeSymbol<T extends JTypeReference<? extends JTypeSymb
 
   @Override
   public boolean isPrivate() {
-    return getAccessModifier() == BasicAccessModifier.PRIVATE;
+    return getAccessModifier().equals(BasicAccessModifier.PRIVATE);
   }
 
   @Override
   public boolean isProtected() {
-    return getAccessModifier() == BasicAccessModifier.PROTECTED;
+    return getAccessModifier().equals(BasicAccessModifier.PROTECTED);
   }
 
   @Override
   public boolean isPublic() {
-    return getAccessModifier() == BasicAccessModifier.PUBLIC;
+    return getAccessModifier().equals(BasicAccessModifier.PUBLIC);
   }
 
 }

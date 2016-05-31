@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import de.monticore.ast.ASTNode;
 import de.monticore.symboltable.modifiers.AccessModifier;
@@ -132,6 +133,10 @@ public interface Scope {
   // TODO PN Doc
   <T extends Symbol> Collection<T> resolveMany(String name, SymbolKind kind, AccessModifier modifier);
 
+  <T extends Symbol> Collection<T> resolveMany(String name, SymbolKind kind, Predicate<Symbol> predicate);
+
+  <T extends Symbol> Collection<T> resolveMany(String name, SymbolKind kind, AccessModifier modifier, Predicate<Symbol> predicate);
+
   /**
    * Resolves the symbol with the given <code>name</code> and <code>kind</code> only within scope.
    *
@@ -164,7 +169,10 @@ public interface Scope {
    * @param predicate the predicate that has to be fulfilled by the symbol
    *
    * @return the symbol fulfilling the <code>predicate</code>, starting from this scope.
+   *
+   * @deprecated use {@link #resolveMany(String, SymbolKind, Predicate)} instead
    */
+  @Deprecated
   Optional<? extends Symbol> resolve(SymbolPredicate predicate);
 
   <T extends Symbol> Optional<T> resolveDown(String name, SymbolKind kind);
